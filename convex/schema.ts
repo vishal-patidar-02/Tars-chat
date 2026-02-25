@@ -8,7 +8,9 @@ export default defineSchema({
     image: v.string(),
     online: v.boolean(),
     lastSeen: v.number(),
-  }).index("by_clerkId", ["clerkId"]),
+  })
+    .index("by_clerkId", ["clerkId"])
+    .index("by_name", ["name"]),
 
   conversations: defineTable({
     members: v.array(v.id("users")),

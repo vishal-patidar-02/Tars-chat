@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server"
-import { v } from "convex/values"
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
 export const upsertUser = mutation({
   args: {
@@ -10,10 +10,8 @@ export const upsertUser = mutation({
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_clerkId", q =>
-        q.eq("clerkId", args.clerkId)
-      )
-      .first()
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, {
@@ -21,9 +19,9 @@ export const upsertUser = mutation({
         image: args.image,
         online: true,
         lastSeen: Date.now(),
-      })
+      });
 
-      return existing._id
+      return existing._id;
     }
 
     return await ctx.db.insert("users", {
@@ -32,15 +30,15 @@ export const upsertUser = mutation({
       image: args.image,
       online: true,
       lastSeen: Date.now(),
-    })
+    });
   },
-})
+});
 
 export const getUsers = query({
-  handler: async ctx => {
-    return await ctx.db.query("users").collect()
+  handler: async (ctx) => {
+    return await ctx.db.query("users").collect();
   },
-})
+});
 
 export const searchUsers = query({
   args: {
@@ -49,15 +47,18 @@ export const searchUsers = query({
   },
 
   handler: async (ctx, args) => {
-    const users = await ctx.db.query("users").collect()
+    if (!args.search.trim()) return [];
 
-    return users
-      .filter(u => u._id !== args.currentUserId)
-      .filter(u =>
-        u.name.toLowerCase().includes(args.search.toLowerCase())
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_name", (q) =>
+        q.gte("name", args.search).lt("name", args.search + "\uffff"),
       )
+      .collect();
+
+    return users.filter((u) => u._id !== args.currentUserId);
   },
-})
+});
 
 export const setOffline = mutation({
   args: {
@@ -68,9 +69,9 @@ export const setOffline = mutation({
     await ctx.db.patch(args.userId, {
       online: false,
       lastSeen: Date.now(),
-    })
+    });
   },
-})
+});
 
 export const getByClerkId = query({
   args: {
@@ -80,9 +81,7 @@ export const getByClerkId = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("users")
-      .withIndex("by_clerkId", q =>
-        q.eq("clerkId", args.clerkId)
-      )
-      .first()
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
   },
-})
+});
