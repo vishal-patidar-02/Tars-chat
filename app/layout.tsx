@@ -1,10 +1,12 @@
+"use client"
+
 import { ClerkProvider } from "@clerk/nextjs"
+import { ConvexProvider, ConvexReactClient } from "convex/react"
 import "./globals.css"
 
-export const metadata = {
-  title: "Tars Chat",
-  description: "Realtime Chat App",
-}
+const convex = new ConvexReactClient(
+  process.env.NEXT_PUBLIC_CONVEX_URL!
+)
 
 export default function RootLayout({
   children,
@@ -13,9 +15,11 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body>{children}</body>
-      </html>
+      <ConvexProvider client={convex}>
+        <html lang="en">
+          <body>{children}</body>
+        </html>
+      </ConvexProvider>
     </ClerkProvider>
   )
 }
