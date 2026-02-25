@@ -100,7 +100,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
             key={msg._id}
             className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-md ${
               msg.senderId === meId
-                ? "ml-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+                ? "ml-auto bg-linear-to-r from-indigo-500 to-purple-600 text-white"
                 : "bg-[#151c33] text-gray-200"
             }`}
           >
