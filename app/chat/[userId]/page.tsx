@@ -45,10 +45,11 @@ console.log("Param otherUserId:", otherUserId)
     )
   }
 
-  return (
-    <ChatWindow
-      conversationId={conversationId}
-      meId={me._id}
-    />
-  )
+return (
+  <ChatWindow
+    conversationId={conversationId}
+    meId={me._id}
+    otherUser={other}
+  />
+)
 }

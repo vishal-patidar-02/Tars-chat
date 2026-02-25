@@ -10,9 +10,15 @@ import { Id } from "@/convex/_generated/dataModel"
 interface Props {
   conversationId?: Id<"conversations">
   meId?: Id<"users">
+  otherUser?: {
+    _id: string
+    name: string
+    image?: string
+    online?: boolean
+  }
 }
 
-export default function ChatWindow({ conversationId, meId }: Props) {
+export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
   const messages = useQuery(
     api.messages.getMessages,
     conversationId ? { conversationId } : "skip"
@@ -48,7 +54,30 @@ export default function ChatWindow({ conversationId, meId }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#0a0f1c]">
+      <div className="flex h-full flex-col bg-[#0a0f1c]">
+
+    {/* Chat Header */}
+    <div className="flex items-center gap-3 border-b border-white/10 bg-black/40 px-5 py-3 backdrop-blur-xl">
+
+      <img
+        src={otherUser?.image}
+        alt="user"
+        className="h-10 w-10 rounded-full border border-white/20"
+      />
+
+      <div className="flex flex-col">
+
+        <span className="font-medium text-white">
+          {otherUser?.name || "User"}
+        </span>
+
+        <span className="text-xs text-green-400">
+          {otherUser?.online ? "Online" : "Offline"}
+        </span>
+
+      </div>
+
+    </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 p-5">
