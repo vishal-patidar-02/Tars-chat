@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from "convex/server"
-import { v } from "convex/values"
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 export default defineSchema({
   users: defineTable({
@@ -11,17 +11,18 @@ export default defineSchema({
   }).index("by_clerkId", ["clerkId"]),
 
   conversations: defineTable({
-  members: v.array(v.id("users")),
-  updatedAt: v.number(),
+    members: v.array(v.id("users")),
+    updatedAt: v.number(),
 
-  typing: v.optional(v.id("users")), // 🔥 who is typing
-})
-.index("by_members", ["members"]),
+    typing: v.optional(v.id("users")), // 🔥 who is typing
+  }).index("by_members", ["members"]),
 
   messages: defineTable({
     conversationId: v.id("conversations"),
     senderId: v.id("users"),
     content: v.string(),
     createdAt: v.number(),
+
+    seenBy: v.optional(v.array(v.id("users"))), // 🔥 read status
   }).index("by_conversation", ["conversationId"]),
-})
+});

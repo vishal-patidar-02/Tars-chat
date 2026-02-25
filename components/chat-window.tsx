@@ -22,6 +22,7 @@ interface Props {
 export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
   const setTyping = useMutation(api.messages.setTyping);
   const clearTyping = useMutation(api.messages.clearTyping);
+  const markSeen = useMutation(api.messages.markSeen);
 
   const messages = useQuery(
     api.messages.getMessages,
@@ -45,6 +46,15 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
       clearTyping({ conversationId });
     }
   }, [text]);
+
+  useEffect(() => {
+    if (!conversationId || !meId) return;
+
+    markSeen({
+      conversationId,
+      userId: meId,
+    });
+  }, [messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,18 +118,27 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 p-5">
-        {messages?.map((msg) => (
-          <div
-            key={msg._id}
-            className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-md ${
-              msg.senderId === meId
-                ? "ml-auto bg-linear-to-r from-indigo-500 to-purple-600 text-white"
-                : "bg-[#151c33] text-gray-200"
-            }`}
-          >
-            {msg.content}
-          </div>
-        ))}
+        {messages?.map((msg) => {
+          const seen = msg.senderId === meId && (msg.seenBy?.length || 0) > 1;
+
+          return (
+            <div key={msg._id} className="flex flex-col">
+              <div
+                className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-md ${
+                  msg.senderId === meId
+                    ? "ml-auto bg-linear-to-r from-indigo-500 to-purple-600 text-white"
+                    : "bg-[#151c33] text-gray-200"
+                }`}
+              >
+                {msg.content}
+              </div>
+
+              {seen && (
+                <span className="ml-auto text-[10px] text-gray-400">Seen</span>
+              )}
+            </div>
+          );
+        })}
 
         <div ref={bottomRef} />
       </div>

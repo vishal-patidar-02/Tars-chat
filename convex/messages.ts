@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server"
-import { v } from "convex/values"
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
 /* Create / Get Conversation */
 export const getOrCreateConversation = mutation({
@@ -9,28 +9,25 @@ export const getOrCreateConversation = mutation({
   },
 
   handler: async (ctx, args) => {
-    
     const members = [args.user1, args.user2].sort();
-    
+
     if (args.user1 === args.user2) {
-      throw new Error("Cannot create conversation with yourself")
+      throw new Error("Cannot create conversation with yourself");
     }
 
     const existing = await ctx.db
       .query("conversations")
-      .withIndex("by_members", q =>
-        q.eq("members", members)
-      )
-      .first()
+      .withIndex("by_members", (q) => q.eq("members", members))
+      .first();
 
-    if (existing) return existing._id
+    if (existing) return existing._id;
 
     return await ctx.db.insert("conversations", {
       members,
       updatedAt: Date.now(),
-    })
+    });
   },
-})
+});
 
 /* Send Message */
 export const sendMessage = mutation({
@@ -46,13 +43,14 @@ export const sendMessage = mutation({
       senderId: args.senderId,
       content: args.content,
       createdAt: Date.now(),
-    })
+      seenBy: [args.senderId], // sender has seen it
+    });
 
     await ctx.db.patch(args.conversationId, {
       updatedAt: Date.now(),
-    })
+    });
   },
-})
+});
 
 /* Get Messages */
 export const getMessages = query({
@@ -63,13 +61,13 @@ export const getMessages = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("messages")
-      .withIndex("by_conversation", q =>
-        q.eq("conversationId", args.conversationId)
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId),
       )
       .order("asc")
-      .collect()
+      .collect();
   },
-})
+});
 
 export const getConversationBetweenUsers = query({
   args: {
@@ -78,16 +76,14 @@ export const getConversationBetweenUsers = query({
   },
 
   handler: async (ctx, args) => {
-    const members = [args.user1, args.user2].sort()
+    const members = [args.user1, args.user2].sort();
 
     return await ctx.db
       .query("conversations")
-      .withIndex("by_members", q =>
-        q.eq("members", members)
-      )
-      .first()
+      .withIndex("by_members", (q) => q.eq("members", members))
+      .first();
   },
-})
+});
 
 /* Set Typing */
 export const setTyping = mutation({
@@ -99,9 +95,9 @@ export const setTyping = mutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.conversationId, {
       typing: args.userId,
-    })
+    });
   },
-})
+});
 
 /* Clear Typing */
 export const clearTyping = mutation({
@@ -112,9 +108,9 @@ export const clearTyping = mutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.conversationId, {
       typing: undefined,
-    })
+    });
   },
-})
+});
 
 export const getConversation = query({
   args: {
@@ -122,6 +118,32 @@ export const getConversation = query({
   },
 
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.conversationId)
+    return await ctx.db.get(args.conversationId);
+  },
+});
+
+export const markSeen = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .collect()
+
+    for (const msg of messages) {
+      const seen = msg.seenBy ?? []
+
+      if (!seen.includes(args.userId)) {
+        await ctx.db.patch(msg._id, {
+          seenBy: [...seen, args.userId],
+        })
+      }
+    }
   },
 })
