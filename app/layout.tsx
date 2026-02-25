@@ -17,11 +17,11 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <ConvexProvider client={convex}>
-        <html lang="en">
-          <body>
+        <html lang="en" className="dark">
+          <body className="bg-[#0a0f1c] text-gray-100">
             <UserSync />
             {children}
-            </body>
+          </body>
         </html>
       </ConvexProvider>
     </ClerkProvider>

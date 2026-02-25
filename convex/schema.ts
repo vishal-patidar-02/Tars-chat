@@ -11,10 +11,10 @@ export default defineSchema({
   }).index("by_clerkId", ["clerkId"]),
 
   conversations: defineTable({
-    members: v.array(v.id("users")),
-    lastMessage: v.optional(v.string()),
-    updatedAt: v.number(),
-  }),
+  members: v.array(v.id("users")),
+  updatedAt: v.number(),
+})
+.index("by_members", ["members"]),
 
   messages: defineTable({
     conversationId: v.id("conversations"),

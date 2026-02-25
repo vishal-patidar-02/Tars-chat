@@ -9,26 +9,19 @@ export const getOrCreateConversation = mutation({
   },
 
   handler: async (ctx, args) => {
+    const members = [args.user1, args.user2].sort()
+
     const existing = await ctx.db
       .query("conversations")
-      .filter(q =>
-        q.or(
-          q.and(
-            q.eq(q.field("members")[0], args.user1),
-            q.eq(q.field("members")[1], args.user2)
-          ),
-          q.and(
-            q.eq(q.field("members")[0], args.user2),
-            q.eq(q.field("members")[1], args.user1)
-          )
-        )
+      .withIndex("by_members", q =>
+        q.eq("members", members)
       )
       .first()
 
     if (existing) return existing._id
 
     return await ctx.db.insert("conversations", {
-      members: [args.user1, args.user2],
+      members,
       updatedAt: Date.now(),
     })
   },
