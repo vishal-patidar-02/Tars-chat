@@ -2,6 +2,7 @@
 
 import { ClerkProvider } from "@clerk/nextjs"
 import { ConvexProvider, ConvexReactClient } from "convex/react"
+import UserSync from "@/components/user-sync"
 import "./globals.css"
 
 const convex = new ConvexReactClient(
@@ -17,7 +18,10 @@ export default function RootLayout({
     <ClerkProvider>
       <ConvexProvider client={convex}>
         <html lang="en">
-          <body>{children}</body>
+          <body>
+            <UserSync />
+            {children}
+            </body>
         </html>
       </ConvexProvider>
     </ClerkProvider>
