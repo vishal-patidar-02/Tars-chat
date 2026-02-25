@@ -15,6 +15,7 @@ interface Props {
     name: string
     image?: string
     online?: boolean
+    lastSeen?: number
   }
 }
 
