@@ -9,7 +9,12 @@ export const getOrCreateConversation = mutation({
   },
 
   handler: async (ctx, args) => {
-    const members = [args.user1, args.user2].sort()
+    
+    const members = [args.user1, args.user2].sort();
+    
+    if (args.user1 === args.user2) {
+      throw new Error("Cannot create conversation with yourself")
+    }
 
     const existing = await ctx.db
       .query("conversations")
@@ -63,5 +68,23 @@ export const getMessages = query({
       )
       .order("asc")
       .collect()
+  },
+})
+
+export const getConversationBetweenUsers = query({
+  args: {
+    user1: v.id("users"),
+    user2: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    const members = [args.user1, args.user2].sort()
+
+    return await ctx.db
+      .query("conversations")
+      .withIndex("by_members", q =>
+        q.eq("members", members)
+      )
+      .first()
   },
 })
