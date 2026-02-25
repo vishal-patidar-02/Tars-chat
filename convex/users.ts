@@ -40,25 +40,6 @@ export const getUsers = query({
   },
 });
 
-export const searchUsers = query({
-  args: {
-    search: v.string(),
-    currentUserId: v.id("users"),
-  },
-
-  handler: async (ctx, args) => {
-    if (!args.search.trim()) return [];
-
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_name", (q) =>
-        q.gte("name", args.search).lt("name", args.search + "\uffff"),
-      )
-      .collect();
-
-    return users.filter((u) => u._id !== args.currentUserId);
-  },
-});
 
 export const setOffline = mutation({
   args: {

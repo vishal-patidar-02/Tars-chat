@@ -6,27 +6,29 @@ import { api } from "@/convex/_generated/api";
 import UserItem from "./user-item";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useDebounce } from "@/hooks/use-debounce";
+import Fuse from "fuse.js";
 
 export default function Sidebar() {
   const { user } = useUser();
-
   const [search, setSearch] = useState("");
-  const debounced = useDebounce(search);
 
   const users = useQuery(api.users.getUsers);
 
   const me = users?.find((u) => u.clerkId === user?.id);
 
-  const results = useQuery(
-    api.users.searchUsers,
-    me
-      ? {
-          search: debounced,
-          currentUserId: me._id,
-        }
-      : "skip",
-  );
+  const filteredUsers = (() => {
+    if (!users || !search) return [];
+
+    const fuse = new Fuse(
+      users.filter((u) => u._id !== me?._id),
+      {
+        keys: ["name"],
+        threshold: 0.4, // lower = stricter
+      },
+    );
+
+    return fuse.search(search).map((r) => r.item);
+  })();
 
   if (!users) {
     return <aside className="w-72 p-4 border-r">Loading...</aside>;
@@ -46,22 +48,23 @@ export default function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 space-y-1">
-        {debounced && results?.length === 0 && (
+        {filteredUsers?.length === 0 && (
           <div className="text-sm text-muted-foreground p-2">
             No users found
           </div>
         )}
 
-        {(debounced ? results : users?.filter((u) => u._id !== me?._id))?.map(
-          (user) => (
-            <UserItem
-              key={user._id}
-              id={user._id}
-              name={user.name}
-              image={user.image}
-            />
-          ),
-        )}
+        {(search
+          ? filteredUsers
+          : users?.filter((u) => u._id !== me?._id)
+        )?.map((user) => (
+          <UserItem
+            key={user._id}
+            id={user._id}
+            name={user.name}
+            image={user.image}
+          />
+        ))}
       </div>
     </aside>
   );
