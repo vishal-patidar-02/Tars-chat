@@ -71,8 +71,20 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
           {otherUser?.name || "User"}
         </span>
 
-        <span className="text-xs text-green-400">
-          {otherUser?.online ? "Online" : "Offline"}
+        <span
+          className={`text-xs ${
+            otherUser?.online
+              ? "text-green-400"
+              : "text-gray-400"
+          }`}
+        >
+          {otherUser?.online
+            ? "Online"
+            : `Last seen ${
+        otherUser?.lastSeen
+          ? new Date(otherUser.lastSeen).toLocaleTimeString()
+          : "recently"
+              }`}
         </span>
 
       </div>

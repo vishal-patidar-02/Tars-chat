@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { usePathname } from "next/navigation"
 
 interface Props {
   id: string
@@ -11,8 +12,9 @@ interface Props {
 
 export default function UserItem({ id, name, image }: Props) {
   const router = useRouter()
- 
-  const active = typeof window !== "undefined" && window.location.pathname.includes(id);
+  
+   const pathname = usePathname()
+   const active = pathname.includes(id)
 
   return (
     <button

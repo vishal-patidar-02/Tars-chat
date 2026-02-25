@@ -41,3 +41,33 @@ export const getUsers = query({
     return await ctx.db.query("users").collect()
   },
 })
+
+export const searchUsers = query({
+  args: {
+    search: v.string(),
+    currentUserId: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    const users = await ctx.db.query("users").collect()
+
+    return users
+      .filter(u => u._id !== args.currentUserId)
+      .filter(u =>
+        u.name.toLowerCase().includes(args.search.toLowerCase())
+      )
+  },
+})
+
+export const setOffline = mutation({
+  args: {
+    userId: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      online: false,
+      lastSeen: Date.now(),
+    })
+  },
+})
