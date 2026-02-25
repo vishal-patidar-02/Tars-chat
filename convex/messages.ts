@@ -88,3 +88,40 @@ export const getConversationBetweenUsers = query({
       .first()
   },
 })
+
+/* Set Typing */
+export const setTyping = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.conversationId, {
+      typing: args.userId,
+    })
+  },
+})
+
+/* Clear Typing */
+export const clearTyping = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.conversationId, {
+      typing: undefined,
+    })
+  },
+})
+
+export const getConversation = query({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.conversationId)
+  },
+})

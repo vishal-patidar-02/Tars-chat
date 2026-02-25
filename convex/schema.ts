@@ -13,6 +13,8 @@ export default defineSchema({
   conversations: defineTable({
   members: v.array(v.id("users")),
   updatedAt: v.number(),
+
+  typing: v.optional(v.id("users")), // 🔥 who is typing
 })
 .index("by_members", ["members"]),
 

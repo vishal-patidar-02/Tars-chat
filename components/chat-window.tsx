@@ -1,49 +1,70 @@
-"use client"
+"use client";
 
-import { useQuery, useMutation } from "convex/react"
-import { api } from "@/convex/_generated/api"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { useState, useRef, useEffect } from "react"
-import { Id } from "@/convex/_generated/dataModel"
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useState, useRef, useEffect } from "react";
+import { Id } from "@/convex/_generated/dataModel";
 
 interface Props {
-  conversationId?: Id<"conversations">
-  meId?: Id<"users">
+  conversationId?: Id<"conversations">;
+  meId?: Id<"users">;
   otherUser?: {
-    _id: string
-    name: string
-    image?: string
-    online?: boolean
-    lastSeen?: number
-  }
+    _id: string;
+    name: string;
+    image?: string;
+    online?: boolean;
+    lastSeen?: number;
+  };
 }
 
 export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
+  const setTyping = useMutation(api.messages.setTyping);
+  const clearTyping = useMutation(api.messages.clearTyping);
+
   const messages = useQuery(
     api.messages.getMessages,
-    conversationId ? { conversationId } : "skip"
-  )
+    conversationId ? { conversationId } : "skip",
+  );
 
-  const sendMessage = useMutation(api.messages.sendMessage)
+  const sendMessage = useMutation(api.messages.sendMessage);
 
-  const [text, setText] = useState("")
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const [text, setText] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    if (!conversationId || !meId) return;
+
+    if (text.length > 0) {
+      setTyping({
+        conversationId,
+        userId: meId,
+      });
+    } else {
+      clearTyping({ conversationId });
+    }
+  }, [text]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const conversation = useQuery(
+    api.messages.getConversation,
+    conversationId ? { conversationId } : "skip",
+  );
 
   async function handleSend() {
-    if (!text.trim() || !conversationId || !meId) return
+    if (!text.trim() || !conversationId || !meId) return;
 
     await sendMessage({
       conversationId,
       senderId: meId,
       content: text,
-    })
+    });
 
-    setText("")
+    setText("");
   }
 
   if (!conversationId || !meId) {
@@ -51,51 +72,43 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
       <div className="flex h-full items-center justify-center text-gray-400">
         Select a chat to start messaging
       </div>
-    )
+    );
   }
 
   return (
-      <div className="flex h-full flex-col bg-[#0a0f1c]">
+    <div className="flex h-full flex-col bg-[#0a0f1c]">
+      {/* Chat Header */}
+      <div className="flex items-center gap-3 border-b border-white/10 bg-black/40 px-5 py-3 backdrop-blur-xl">
+        <img
+          src={otherUser?.image}
+          alt="user"
+          className="h-10 w-10 rounded-full border border-white/20"
+        />
 
-    {/* Chat Header */}
-    <div className="flex items-center gap-3 border-b border-white/10 bg-black/40 px-5 py-3 backdrop-blur-xl">
+        <div className="flex flex-col">
+          <span className="font-medium text-white">
+            {otherUser?.name || "User"}
+          </span>
 
-      <img
-        src={otherUser?.image}
-        alt="user"
-        className="h-10 w-10 rounded-full border border-white/20"
-      />
-
-      <div className="flex flex-col">
-
-        <span className="font-medium text-white">
-          {otherUser?.name || "User"}
-        </span>
-
-        <span
-          className={`text-xs ${
-            otherUser?.online
-              ? "text-green-400"
-              : "text-gray-400"
-          }`}
-        >
-          {otherUser?.online
-            ? "Online"
-            : `Last seen ${
-        otherUser?.lastSeen
-          ? new Date(otherUser.lastSeen).toLocaleTimeString()
-          : "recently"
-              }`}
-        </span>
-
+          <span
+            className={`text-xs ${
+              otherUser?.online ? "text-green-400" : "text-gray-400"
+            }`}
+          >
+            {otherUser?.online
+              ? "Online"
+              : `Last seen ${
+                  otherUser?.lastSeen
+                    ? new Date(otherUser.lastSeen).toLocaleTimeString()
+                    : "recently"
+                }`}
+          </span>
+        </div>
       </div>
-
-    </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 p-5">
-
-        {messages?.map(msg => (
+        {messages?.map((msg) => (
           <div
             key={msg._id}
             className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-md ${
@@ -110,17 +123,17 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
 
         <div ref={bottomRef} />
       </div>
-
+      {conversation?.typing && conversation.typing !== meId && (
+        <div className="px-4 pb-1 text-xs text-indigo-400">Typing...</div>
+      )}
       {/* Input */}
       <div className="border-t border-white/10 bg-black/40 backdrop-blur-xl p-4">
-
         <div className="flex gap-2">
-
           <Input
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={(e) => setText(e.target.value)}
             placeholder="Type a message..."
-            onKeyDown={e => e.key === "Enter" && handleSend()}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
             className="flex-1 bg-[#11172d] border-white/10 text-white placeholder:text-gray-400"
           />
 
@@ -130,9 +143,8 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
           >
             Send
           </Button>
-
         </div>
       </div>
     </div>
-  )
+  );
 }
