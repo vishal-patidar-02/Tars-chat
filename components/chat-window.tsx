@@ -24,6 +24,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
   const setTyping = useMutation(api.messages.setTyping);
   const clearTyping = useMutation(api.messages.clearTyping);
   const markSeen = useMutation(api.messages.markSeen);
+  const deleteMessage = useMutation(api.messages.deleteMessage);
 
   const messages = useQuery(
     api.messages.getMessages,
@@ -130,27 +131,52 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
           </div>
         )}
         {messages?.map((msg) => {
-          const seen = msg.senderId === meId && (msg.seenBy?.length || 0) > 1;
+          const isMe = msg.senderId === meId;
+          const seen = isMe && (msg.seenBy?.length || 0) > 1;
 
           return (
-            <div key={msg._id} className="flex flex-col">
+            <div key={msg._id} className="flex flex-col group">
               <div
-                className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-md ${
-                  msg.senderId === meId
+                className={`relative max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-md ${
+                  isMe
                     ? "ml-auto bg-linear-to-r from-indigo-500 to-purple-600 text-white"
                     : "bg-[#151c33] text-gray-200"
                 }`}
               >
-                {msg.content}
-                <div
-                  className={`mt-1 text-[10px] ${meId ? "text-white/70" : "text-gray-400"} text-right`}
-                >
+                {/* MESSAGE CONTENT */}
+                {msg.isDeleted ? (
+                  <div className="italic text-gray-400">
+                    This message was deleted
+                  </div>
+                ) : (
+                  <div>{msg.content}</div>
+                )}
+
+                {/* TIMESTAMP */}
+                <div className="mt-1 text-[10px] text-white/70 text-right">
                   {formatMessageTime(msg.createdAt)}
                 </div>
+
+                {/* DELETE BUTTON (ONLY FOR OWN MESSAGE) */}
+                {isMe && !msg.isDeleted && (
+                  <button
+                    onClick={() =>
+                      deleteMessage({
+                        messageId: msg._id,
+                        userId: meId!,
+                      })
+                    }
+                    className="absolute -right-8 top-1 hidden text-xs text-red-400 group-hover:block"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
 
               {seen && (
-                <span className="ml-auto text-[10px] text-gray-400">Seen</span>
+                <span className="ml-auto text-[10px] text-gray-400 mt-1">
+                  Seen
+                </span>
               )}
             </div>
           );

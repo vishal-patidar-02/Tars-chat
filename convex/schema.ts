@@ -26,5 +26,6 @@ export default defineSchema({
     createdAt: v.number(),
 
     seenBy: v.optional(v.array(v.id("users"))), // 🔥 read status
+    isDeleted: v.optional(v.boolean()), // 🔥 ADD THIS
   }).index("by_conversation", ["conversationId"]),
 });

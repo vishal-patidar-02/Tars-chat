@@ -200,3 +200,29 @@ export const getConversationsWithUnread = query({
     return result.sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });
+
+/* Soft Delete Message */
+export const deleteMessage = mutation({
+  args: {
+    messageId: v.id("messages"),
+    userId: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+
+    const message = await ctx.db.get(args.messageId);
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    if (message.senderId !== args.userId) {
+      throw new Error("Not authorized to delete this message");
+    }
+
+    await ctx.db.patch(args.messageId, {
+      content: "",
+      isDeleted: true,
+    });
+  },
+});
