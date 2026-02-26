@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import { formatMessageTime } from "@/lib/format-date";
 
 interface Props {
   conversationId?: Id<"conversations">;
@@ -131,6 +132,9 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                 }`}
               >
                 {msg.content}
+                <div className={`mt-1 text-[10px] ${meId ? "text-white/70" : "text-gray-400"} text-right`}>
+                  {formatMessageTime(msg.createdAt)}
+                </div>
               </div>
 
               {seen && (
