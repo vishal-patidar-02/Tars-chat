@@ -9,18 +9,23 @@ export const getOrCreateConversation = mutation({
   },
 
   handler: async (ctx, args) => {
-    const members = [args.user1, args.user2].sort();
 
     if (args.user1 === args.user2) {
       throw new Error("Cannot create conversation with yourself");
     }
 
+    const members = [args.user1, args.user2].sort();
+
     const existing = await ctx.db
       .query("conversations")
-      .withIndex("by_members", (q) => q.eq("members", members))
+      .withIndex("by_members", q =>
+        q.eq("members", members)
+      )
       .first();
 
-    if (existing) return existing._id;
+    if (existing) {
+      return existing._id;
+    }
 
     return await ctx.db.insert("conversations", {
       members,
@@ -147,3 +152,51 @@ export const markSeen = mutation({
     }
   },
 })
+
+export const getConversationsWithUnread = query({
+  args: {
+    userId: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+
+    // Get only conversations where user is member
+    const conversations = await ctx.db
+      .query("conversations")
+      .filter(q =>
+        q.eq(q.field("members"), q.field("members")) // required structure
+      )
+      .collect();
+
+    const userConversations = conversations.filter(c =>
+      c.members.includes(args.userId)
+    );
+
+    const result = [];
+
+    for (const convo of userConversations) {
+
+      const messages = await ctx.db
+        .query("messages")
+        .withIndex("by_conversation", q =>
+          q.eq("conversationId", convo._id)
+        )
+        .collect();
+
+      const unreadCount = messages.filter(msg =>
+        msg.senderId !== args.userId &&
+        !(msg.seenBy ?? []).includes(args.userId)
+      ).length;
+
+      result.push({
+        _id: convo._id,
+        members: convo.members,
+        updatedAt: convo.updatedAt,
+        unreadCount,
+      });
+    }
+
+    // Sort by latest message
+    return result.sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+});
