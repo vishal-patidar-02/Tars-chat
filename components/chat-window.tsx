@@ -239,7 +239,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
 
                     {/* Bubble */}
                     <div
-                      className={`relative min-w-0 max-w-[75%] break-words whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm shadow-sm transition-all duration-200 ${
+                      className={`relative min-w-0 max-w-130 wrap-break-word whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm shadow-sm transition-all duration-200 ${
                         isDeleting ? "opacity-40" : "opacity-100"
                       } ${
                         isMe
@@ -252,7 +252,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                           This message was deleted
                         </span>
                       ) : (
-                        <span className="leading-relaxed break-words">
+                        <span className="leading-relaxed wrap-break-word">
                           {msg.content}
                         </span>
                       )}
