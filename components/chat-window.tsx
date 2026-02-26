@@ -158,7 +158,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
     <div className="flex h-full w-full flex-col bg-background">
       {/* ── Chat header ── */}
       <div className="flex items-center gap-3 border-b border-border px-5 py-3">
-        <div className="relative flex-shrink-0">
+        <div className="relative shrink-0">
           <img
             src={otherUser?.image ?? "/default-avatar.png"}
             alt={otherUser?.name}
@@ -227,7 +227,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                     {/* Other user avatar (shown on first message in a group) */}
                     {!isMe && (
                       <div
-                        className={`flex-shrink-0 ${showAvatar ? "visible" : "invisible"}`}
+                        className={`shrink-0 ${showAvatar ? "visible" : "invisible"}`}
                       >
                         <img
                           src={otherUser?.image ?? "/default-avatar.png"}
