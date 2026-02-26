@@ -20,11 +20,8 @@ export default function UserSync() {
 
   useEffect(() => {
     if (!isLoaded || !user) return
-
-    // Create/update user
     if (!synced.current) {
       synced.current = true
-
       upsertUser({
         clerkId: user.id,
         name: user.fullName || "User",
@@ -35,16 +32,11 @@ export default function UserSync() {
 
   useEffect(() => {
     if (!convexUser?._id) return
-
     const handleUnload = () => {
       setOffline({ userId: convexUser._id })
     }
-
     window.addEventListener("beforeunload", handleUnload)
-
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload)
-    }
+    return () => window.removeEventListener("beforeunload", handleUnload)
   }, [convexUser])
 
   return null

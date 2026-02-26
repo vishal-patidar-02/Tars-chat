@@ -2,15 +2,12 @@
 
 import { ClerkProvider } from "@clerk/nextjs"
 import { ConvexProvider, ConvexReactClient } from "convex/react"
+import { ThemeProvider } from "@/components/theme-provider"
 import UserSync from "@/components/user-sync"
 import "./globals.css"
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
-
-if (!convexUrl) {
-  throw new Error("NEXT_PUBLIC_CONVEX_URL is missing")
-}
-
+if (!convexUrl) throw new Error("NEXT_PUBLIC_CONVEX_URL is missing")
 const convex = new ConvexReactClient(convexUrl)
 
 export default function RootLayout({
@@ -21,10 +18,12 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <ConvexProvider client={convex}>
-        <html lang="en" className="dark">
-          <body className="bg-[#0a0f1c] text-gray-100">
-            <UserSync />
-            {children}
+        <html lang="en" suppressHydrationWarning>
+          <body className="bg-background text-foreground antialiased">
+            <ThemeProvider>
+              <UserSync />
+              {children}
+            </ThemeProvider>
           </body>
         </html>
       </ConvexProvider>
