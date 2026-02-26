@@ -119,6 +119,16 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 p-5">
+        {messages && messages.length === 0 && (
+          <div className="flex flex-1 items-center justify-center text-center text-gray-400">
+            <div>
+              <p className="text-lg font-medium">No messages yet</p>
+              <p className="text-sm mt-1">
+                Say hello 👋 and start the conversation
+              </p>
+            </div>
+          </div>
+        )}
         {messages?.map((msg) => {
           const seen = msg.senderId === meId && (msg.seenBy?.length || 0) > 1;
 
@@ -132,7 +142,9 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                 }`}
               >
                 {msg.content}
-                <div className={`mt-1 text-[10px] ${meId ? "text-white/70" : "text-gray-400"} text-right`}>
+                <div
+                  className={`mt-1 text-[10px] ${meId ? "text-white/70" : "text-gray-400"} text-right`}
+                >
                   {formatMessageTime(msg.createdAt)}
                 </div>
               </div>
