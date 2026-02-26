@@ -21,6 +21,9 @@ interface Props {
 }
 
 export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showNewMessageBtn, setShowNewMessageBtn] = useState(false);
   const setTyping = useMutation(api.messages.setTyping);
   const clearTyping = useMutation(api.messages.clearTyping);
   const markSeen = useMutation(api.messages.markSeen);
@@ -59,7 +62,38 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
   }, [messages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const threshold = 100;
+      const atBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        threshold;
+
+      setIsAtBottom(atBottom);
+
+      if (atBottom) {
+        setShowNewMessageBtn(false);
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !messages) return;
+
+    if (isAtBottom) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    } else {
+      setShowNewMessageBtn(true);
+    }
   }, [messages]);
 
   const conversation = useQuery(
@@ -119,7 +153,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 p-5">
+      <div ref={containerRef} className="flex-1 overflow-y-auto space-y-3 p-5">
         {messages && messages.length === 0 && (
           <div className="flex flex-1 items-center justify-center text-center text-gray-400">
             <div>
@@ -181,6 +215,22 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
             </div>
           );
         })}
+        {showNewMessageBtn && (
+          <div className="sticky bottom-4 flex justify-center">
+            <button
+              onClick={() => {
+                containerRef.current?.scrollTo({
+                  top: containerRef.current.scrollHeight,
+                  behavior: "smooth",
+                });
+                setShowNewMessageBtn(false);
+              }}
+              className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-indigo-700"
+            >
+              ↓ New messages
+            </button>
+          </div>
+        )}
 
         <div ref={bottomRef} />
       </div>
