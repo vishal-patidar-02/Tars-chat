@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import UserItem from "../user-item"
+import UserItem from "../user/user-item"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import Fuse from "fuse.js"
