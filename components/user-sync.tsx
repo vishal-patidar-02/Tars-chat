@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 export default function UserSync() {
   const { user, isLoaded } = useUser()
@@ -18,6 +18,7 @@ export default function UserSync() {
 
   const synced = useRef(false)
 
+  // ── Existing: upsert user on mount ──
   useEffect(() => {
     if (!isLoaded || !user) return
     if (!synced.current) {
@@ -30,6 +31,7 @@ export default function UserSync() {
     }
   }, [isLoaded, user])
 
+  // ── Existing: set offline on tab close ──
   useEffect(() => {
     if (!convexUser?._id) return
     const handleUnload = () => {
