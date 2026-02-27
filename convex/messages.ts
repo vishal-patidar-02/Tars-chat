@@ -34,6 +34,34 @@ export const getOrCreateConversation = mutation({
   },
 });
 
+/* Create Group Conversation */
+export const createGroupConversation = mutation({
+  args: {
+    name: v.string(),
+    memberIds: v.array(v.id("users")),
+    createdBy: v.id("users"),
+  },
+
+  handler: async (ctx, args) => {
+    if (args.name.trim().length === 0) {
+      throw new Error("Group name cannot be empty");
+    }
+    if (args.memberIds.length < 1) {
+      throw new Error("A group needs at least 1 other member");
+    }
+
+    const members = [...new Set([args.createdBy, ...args.memberIds])].sort();
+
+    return await ctx.db.insert("conversations", {
+      members,
+      updatedAt: Date.now(),
+      isGroup: true,
+      name: args.name.trim(),
+      createdBy: args.createdBy,
+    });
+  },
+});
+
 /* Send Message */
 export const sendMessage = mutation({
   args: {
@@ -48,7 +76,7 @@ export const sendMessage = mutation({
       senderId: args.senderId,
       content: args.content,
       createdAt: Date.now(),
-      seenBy: [args.senderId], // sender has seen it
+      seenBy: [args.senderId],
     });
 
     await ctx.db.patch(args.conversationId, {
@@ -159,12 +187,10 @@ export const getConversationsWithUnread = query({
   },
 
   handler: async (ctx, args) => {
-
-    // Get only conversations where user is member
     const conversations = await ctx.db
       .query("conversations")
       .filter(q =>
-        q.eq(q.field("members"), q.field("members")) // required structure
+        q.eq(q.field("members"), q.field("members"))
       )
       .collect();
 
@@ -193,10 +219,11 @@ export const getConversationsWithUnread = query({
         members: convo.members,
         updatedAt: convo.updatedAt,
         unreadCount,
+        isGroup: convo.isGroup ?? false,
+        name: convo.name,
       });
     }
 
-    // Sort by latest message
     return result.sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });

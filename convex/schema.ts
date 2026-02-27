@@ -16,7 +16,12 @@ export default defineSchema({
     members: v.array(v.id("users")),
     updatedAt: v.number(),
 
-    typing: v.optional(v.id("users")), // 🔥 who is typing
+    typing: v.optional(v.id("users")), //who istyping
+
+    // Group chat fields
+    isGroup: v.optional(v.boolean()),
+    name: v.optional(v.string()),
+    createdBy: v.optional(v.id("users")),
   }).index("by_members", ["members"]),
 
   messages: defineTable({
