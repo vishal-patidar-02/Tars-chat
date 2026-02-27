@@ -12,6 +12,7 @@ import { ChatMessagesSkeleton } from "./skeletons";
 interface Props {
   conversationId?: Id<"conversations">;
   meId?: Id<"users">;
+  // DM-specific
   otherUser?: {
     _id: string;
     name: string;
@@ -19,9 +20,20 @@ interface Props {
     online?: boolean;
     lastSeen?: number;
   };
+  // Group-specific
+  isGroup?: boolean;
+  groupName?: string;
+  groupMembers?: Array<{ _id: string; name: string; image?: string }>;
 }
 
-export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
+export default function ChatWindow({
+  conversationId,
+  meId,
+  otherUser,
+  isGroup,
+  groupName,
+  groupMembers,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -156,33 +168,62 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
 
   const isLoading = !messages;
 
+  /* Determine header info */
+  const headerName = isGroup ? groupName ?? "Group Chat" : otherUser?.name ?? "User";
+  const headerSubtitle = isGroup
+    ? `${groupMembers?.length ?? 0} members`
+    : otherUser?.online
+      ? "Online"
+      : otherUser?.lastSeen
+        ? `Last seen ${new Date(otherUser.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+        : "Offline";
+
+  /* For group messages, find sender info */
+  const getSenderName = (senderId: string) => {
+    if (!isGroup) return null;
+    return groupMembers?.find((m) => m._id === senderId)?.name ?? "Unknown";
+  };
+  const getSenderImage = (senderId: string) => {
+    if (!isGroup) return otherUser?.image ?? "/default-avatar.png";
+    return groupMembers?.find((m) => m._id === senderId)?.image ?? "/default-avatar.png";
+  };
+
   return (
     <div className="flex h-full w-full flex-col bg-background">
       {/* ── Chat header ── */}
       <div className="flex items-center gap-3 border-b border-border px-5 py-3">
         <div className="relative shrink-0">
-          <img
-            src={otherUser?.image ?? "/default-avatar.png"}
-            alt={otherUser?.name}
-            className="h-9 w-9 rounded-full object-cover"
-          />
-          {otherUser?.online && (
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-online-dot ring-2 ring-panel" />
+          {isGroup ? (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy/15 dark:bg-cream/10 ring-1 ring-border">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-navy dark:text-cream">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+          ) : (
+            <>
+              <img
+                src={otherUser?.image ?? "/default-avatar.png"}
+                alt={otherUser?.name}
+                className="h-9 w-9 rounded-full object-cover"
+              />
+              {otherUser?.online && (
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-online-dot ring-2 ring-panel" />
+              )}
+            </>
           )}
         </div>
 
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold text-foreground">
-            {otherUser?.name ?? "User"}
+            {headerName}
           </span>
           <span
-            className={`text-xs ${otherUser?.online ? "text-green-500" : "text-muted-foreground"}`}
+            className={`text-xs ${!isGroup && otherUser?.online ? "text-green-500" : "text-muted-foreground"}`}
           >
-            {otherUser?.online
-              ? "Online"
-              : otherUser?.lastSeen
-                ? `Last seen ${new Date(otherUser.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                : "Offline"}
+            {headerSubtitle}
           </span>
         </div>
       </div>
@@ -195,7 +236,6 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
         {isLoading ? (
           <ChatMessagesSkeleton />
         ) : messages.length === 0 ? (
-          /* Empty chat */
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
               <span className="text-2xl">👋</span>
@@ -204,11 +244,10 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
               Start a conversation
             </p>
             <p className="text-xs text-muted-foreground">
-              Say hello to {otherUser?.name ?? "them"}!
+              {isGroup ? `Say hello to the group!` : `Say hello to ${otherUser?.name ?? "them"}!`}
             </p>
           </div>
         ) : (
-          /* Message list */
           <div className="flex flex-col gap-3 px-3 py-4 sm:px-6 sm:py-6">
             {messages.map((msg, idx) => {
               const isMe = msg.senderId === meId;
@@ -218,22 +257,31 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                 !isMe && (!prevMsg || prevMsg.senderId !== msg.senderId);
               const isDeleting = deletingIds.has(msg._id);
               const showMobileDelete = activeMobileDeleteId === msg._id;
+              const senderName = getSenderName(msg.senderId);
+              const senderImage = getSenderImage(msg.senderId);
 
               return (
                 <div
                   key={msg._id}
                   className={`group flex flex-col ${isMe ? "items-end" : "items-start"}`}
                 >
+                  {/* Group sender name (shown above first message in a run) */}
+                  {isGroup && !isMe && showAvatar && senderName && (
+                    <span className="ml-9 mb-0.5 text-[11px] font-medium text-muted-foreground">
+                      {senderName}
+                    </span>
+                  )}
+
                   <div
                     className={`flex w-full min-w-0 items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
                   >
-                    {/* Other user avatar (shown on first message in a group) */}
+                    {/* Other user avatar */}
                     {!isMe && (
                       <div
                         className={`shrink-0 ${showAvatar ? "visible" : "invisible"}`}
                       >
                         <img
-                          src={otherUser?.image ?? "/default-avatar.png"}
+                          src={senderImage}
                           alt=""
                           className="h-6 w-6 rounded-full object-cover"
                         />
@@ -249,7 +297,6 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                           ? "msg-sent rounded-br-sm bg-bubble-sent text-bubble-sent-text"
                           : "msg-recv rounded-bl-sm bg-bubble-recv text-bubble-recv-text"
                       }`}
-                      /* Toggle mobile delete on tap for own messages */
                       onClick={() => {
                         if (isMe && !msg.isDeleted) {
                           setActiveMobileDeleteId(
@@ -268,12 +315,11 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                         </span>
                       )}
 
-                      {/* Timestamp */}
                       <span className="mt-1 block text-right text-[10px] opacity-50">
                         {formatMessageTime(msg.createdAt)}
                       </span>
 
-                      {/* Desktop delete (hover based) */}
+                      {/* Desktop delete */}
                       {isMe && !msg.isDeleted && (
                         <button
                           onClick={(e) => {
@@ -300,7 +346,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                     </div>
                   </div>
 
-                  {/* Mobile delete button — appears below bubble on tap, md+ hidden */}
+                  {/* Mobile delete */}
                   {isMe && !msg.isDeleted && showMobileDelete && (
                     <button
                       onClick={() => handleDelete(msg._id)}
@@ -323,8 +369,8 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                     </button>
                   )}
 
-                  {/* Seen receipt */}
-                  {seen && (
+                  {/* Seen receipt (DM only) */}
+                  {!isGroup && seen && (
                     <span className="mr-2 mt-0.5 text-[10px] text-muted-foreground">
                       Seen
                     </span>
@@ -374,7 +420,10 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
             ))}
           </div>
           <span className="text-xs text-muted-foreground">
-            {otherUser?.name ?? "Typing"}…
+            {isGroup
+              ? groupMembers?.find((m) => m._id === conversation.typing)?.name ?? "Someone"
+              : otherUser?.name ?? "Typing"}
+            …
           </span>
         </div>
       )}
@@ -392,7 +441,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                 handleSend();
               }
             }}
-            placeholder={`Message ${otherUser?.name ?? ""}…`}
+            placeholder={isGroup ? `Message ${groupName ?? "the group"}…` : `Message ${otherUser?.name ?? ""}…`}
             className="flex-1"
           />
           <Button onClick={handleSend} disabled={!text.trim()}>

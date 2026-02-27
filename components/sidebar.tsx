@@ -8,10 +8,14 @@ import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import Fuse from "fuse.js"
 import { SidebarSkeleton } from "./skeletons"
+import dynamic from "next/dynamic"
+
+const CreateGroupModal = dynamic(() => import("./create-group-modal"), { ssr: false })
 
 export default function Sidebar() {
   const { user } = useUser()
   const [search, setSearch] = useState("")
+  const [showGroupModal, setShowGroupModal] = useState(false)
 
   const users = useQuery(api.users.getUsers)
   const me = users?.find((u) => u.clerkId === user?.id)
@@ -35,6 +39,19 @@ export default function Sidebar() {
 
   /* ── Conversation mode ── */
   const conversationItems = conversations?.map((convo) => {
+    if (convo.isGroup) {
+      return {
+        conversationId: convo._id,
+        id: convo._id,
+        name: convo.name ?? "Group Chat",
+        image: undefined,
+        online: false,
+        unreadCount: convo.unreadCount,
+        isGroup: true,
+        memberCount: convo.members.length,
+      }
+    }
+
     const otherId = convo.members.find((id) => id !== me?._id)
     const otherUser = users?.find((u) => u._id === otherId)
     return {
@@ -44,6 +61,8 @@ export default function Sidebar() {
       image: otherUser?.image,
       online: otherUser?.online,
       unreadCount: convo.unreadCount,
+      isGroup: false,
+      memberCount: undefined,
     }
   })
 
@@ -54,17 +73,34 @@ export default function Sidebar() {
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {search.trim() ? "Search Results" : "Messages"}
         </h2>
-        {!search.trim() && conversationItems && conversationItems.length > 0 && (
-          <span className="rounded-md bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {conversationItems.length}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {!search.trim() && conversationItems && conversationItems.length > 0 && (
+            <span className="rounded-md bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {conversationItems.length}
+            </span>
+          )}
+          {/* New Group button */}
+          {me && (
+            <button
+              onClick={() => setShowGroupModal(true)}
+              title="New Group Chat"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                <path d="M20 8v6M23 11h-6" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search */}
       <div className="px-3 pb-3">
         <div className="relative">
-          {/* Search icon */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -149,14 +185,21 @@ export default function Sidebar() {
           conversationItems?.map((item) => (
             <UserItem
               key={item.conversationId}
-              id={item.id}
+              id={item.isGroup ? `group/${item.id}` : item.id}
               name={item.name}
               image={item.image}
               online={item.online}
               unreadCount={item.unreadCount}
+              isGroup={item.isGroup}
+              memberCount={item.memberCount}
             />
           ))}
       </div>
+
+      {/* Group creation modal */}
+      {showGroupModal && me && (
+        <CreateGroupModal meId={me._id} onClose={() => setShowGroupModal(false)} />
+      )}
     </aside>
   )
 }
