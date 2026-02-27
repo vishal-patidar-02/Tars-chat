@@ -2,9 +2,9 @@
 
 import { ClerkProvider } from "@clerk/nextjs"
 import { ConvexProvider, ConvexReactClient } from "convex/react"
-import { ThemeProvider } from "@/components/theme-provider"
-import UserSync from "@/components/user-sync"
-import { NotificationProvider } from "@/components/notification-provider"
+import { ThemeProvider } from "@/components/theme/theme-provider"
+import UserSync from "@/components/user/user-sync"
+import { NotificationProvider } from "@/components/notifications/notification-provider"
 import "./globals.css"
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL

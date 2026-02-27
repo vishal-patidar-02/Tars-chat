@@ -22,14 +22,14 @@ export function SidebarSkeleton() {
           style={{ opacity: 1 - i * 0.1 }}
         >
           {/* Avatar */}
-          <Bone className="h-10 w-10 flex-shrink-0 rounded-full" />
+          <Bone className="h-10 w-10 shrink-0 rounded-full" />
           {/* Text lines */}
           <div className="flex flex-1 flex-col gap-1.5">
             <Bone className={`h-3 rounded-md ${i % 3 === 0 ? "w-3/4" : i % 3 === 1 ? "w-2/3" : "w-1/2"}`} />
             <Bone className={`h-2.5 rounded-md ${i % 2 === 0 ? "w-1/2" : "w-2/5"}`} />
           </div>
           {/* Optional badge */}
-          {i % 3 === 0 && <Bone className="h-5 w-5 rounded-full flex-shrink-0" />}
+          {i % 3 === 0 && <Bone className="h-5 w-5 rounded-full shrink-0" />}
         </div>
       ))}
     </div>
@@ -40,7 +40,7 @@ export function SidebarSkeleton() {
 export function ChatHeaderSkeleton() {
   return (
     <div className="flex items-center gap-3 border-b border-border glass px-5 py-3.5">
-      <Bone className="h-10 w-10 flex-shrink-0 rounded-full" />
+      <Bone className="h-10 w-10 shrink-0 rounded-full" />
       <div className="flex flex-col gap-2">
         <Bone className="h-3 w-36 rounded-md" />
         <Bone className="h-2.5 w-24 rounded-md" />
@@ -68,7 +68,7 @@ export function ChatMessagesSkeleton() {
           key={i}
           className={`flex ${s.side === "right" ? "justify-end" : "justify-start"}`}
         >
-          {s.side === "left" && <Bone className="mr-2.5 h-7 w-7 flex-shrink-0 self-end rounded-full" />}
+          {s.side === "left" && <Bone className="mr-2.5 h-7 w-7 shrink-0 self-end rounded-full" />}
           <Bone className={`h-10 ${s.width} max-w-xs rounded-2xl`} />
         </div>
       ))}

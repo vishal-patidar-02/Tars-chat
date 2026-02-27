@@ -4,8 +4,8 @@ import { useParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import ChatWindow from "@/components/chat-window"
-import { PreparingChatSkeleton } from "@/components/skeletons"
+import ChatWindow from "@/components/chat/chat-window"
+import { PreparingChatSkeleton } from "@/components/chat/skeletons"
 import { Id } from "@/convex/_generated/dataModel"
 
 export default function GroupChatRoom() {

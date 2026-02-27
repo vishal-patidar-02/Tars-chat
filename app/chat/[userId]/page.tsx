@@ -5,8 +5,8 @@ import { useUser } from "@clerk/nextjs"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useEffect, useState } from "react"
-import ChatWindow from "@/components/chat-window"
-import { PreparingChatSkeleton } from "@/components/skeletons"
+import ChatWindow from "@/components/chat/chat-window"
+import { PreparingChatSkeleton } from "@/components/chat/skeletons"
 import { Id } from "@/convex/_generated/dataModel"
 
 export default function ChatRoom() {

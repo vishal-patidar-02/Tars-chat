@@ -1,7 +1,7 @@
 "use client"
 
-import Header from "@/components/header"
-import Sidebar from "@/components/sidebar"
+import Header from "@/components/layout/header"
+import Sidebar from "@/components/layout/sidebar"
 import { useState } from "react"
 
 export default function ChatLayout({
@@ -22,7 +22,7 @@ export default function ChatLayout({
         {/* ── Sidebar – desktop: always visible | mobile: slide-over ── */}
         <>
           {/* Desktop sidebar */}
-          <div className="hidden w-72 flex-shrink-0 border-r border-border md:flex md:flex-col">
+          <div className="hidden w-72 shrink-0 border-r border-border md:flex md:flex-col">
             <Sidebar />
           </div>
 

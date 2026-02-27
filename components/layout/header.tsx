@@ -1,11 +1,11 @@
 "use client"
 
 import { UserButton } from "@clerk/nextjs"
-import { ThemeToggle } from "./theme-toggle"
+import { ThemeToggle } from "../theme/theme-toggle"
 
 export default function Header() {
   return (
-    <header className="relative z-30 flex h-14 flex-shrink-0 items-center justify-between border-b border-border glass px-5">
+    <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-border glass px-5">
       {/* Logo mark */}
       <div className="flex items-center gap-2.5">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy">

@@ -11,7 +11,7 @@ import { ChatMessagesSkeleton } from "./skeletons";
 import { MessageReactions } from "./message-reactions";
 import dynamic from "next/dynamic";
 
-const EditGroupModal = dynamic(() => import("./edit-group-modal"), { ssr: false });
+const EditGroupModal = dynamic(() => import("../group/edit-group-modal"), { ssr: false });
 
 interface Props {
   conversationId?: Id<"conversations">;
