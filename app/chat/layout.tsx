@@ -75,8 +75,8 @@ export default function ChatLayout({
             <span className="text-xs text-muted-foreground">Tap to switch chat</span>
           </div>
 
-          {/* Page content */}
-          <div className="flex flex-1 overflow-hidden">
+          {/* Page content — min-h-0 lets flex-1 children fill without overflow */}
+          <div className="flex min-h-0 flex-1 overflow-hidden">
             {children}
           </div>
         </div>
