@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { ConvexProvider, ConvexReactClient } from "convex/react"
 import { ThemeProvider } from "@/components/theme-provider"
 import UserSync from "@/components/user-sync"
+import { NotificationProvider } from "@/components/notification-provider"
 import "./globals.css"
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
@@ -22,7 +23,9 @@ export default function RootLayout({
           <body className="bg-background text-foreground antialiased">
             <ThemeProvider>
               <UserSync />
-              {children}
+              <NotificationProvider>
+                {children}
+              </NotificationProvider>
             </ThemeProvider>
           </body>
         </html>
