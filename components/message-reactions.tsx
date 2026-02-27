@@ -151,8 +151,8 @@ export function MessageReactions({ messageId, meId, reactions, isMe, isDeleted, 
             bg-elevated text-muted-foreground transition-all duration-150
             hover:border-navy/30 hover:bg-muted hover:text-foreground hover:scale-110
             dark:hover:border-cream/20
-            opacity-0 group-hover:opacity-100 focus:opacity-100
-            ${pickerOpen ? "opacity-100 bg-muted" : ""}
+            opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100
+            ${pickerOpen ? "sm:opacity-100 bg-muted" : ""}
           `}
           aria-label="Add reaction"
         >
