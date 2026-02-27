@@ -30,6 +30,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showNewMsgBtn, setShowNewMsgBtn] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [activeMobileDeleteId, setActiveMobileDeleteId] = useState<string | null>(null);
 
   const setTyping = useMutation(api.messages.setTyping);
   const clearTyping = useMutation(api.messages.clearTyping);
@@ -106,6 +107,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
     if (!meId) return;
 
     setDeletingIds((prev) => new Set(prev).add(msgId));
+    setActiveMobileDeleteId(null);
     await deleteMessage({ messageId: msgId, userId: meId });
 
     setDeletingIds((prev) => {
@@ -215,6 +217,7 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
               const showAvatar =
                 !isMe && (!prevMsg || prevMsg.senderId !== msg.senderId);
               const isDeleting = deletingIds.has(msg._id);
+              const showMobileDelete = activeMobileDeleteId === msg._id;
 
               return (
                 <div
@@ -246,6 +249,14 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                           ? "msg-sent rounded-br-sm bg-bubble-sent text-bubble-sent-text"
                           : "msg-recv rounded-bl-sm bg-bubble-recv text-bubble-recv-text"
                       }`}
+                      /* Toggle mobile delete on tap for own messages */
+                      onClick={() => {
+                        if (isMe && !msg.isDeleted) {
+                          setActiveMobileDeleteId(
+                            showMobileDelete ? null : msg._id,
+                          );
+                        }
+                      }}
                     >
                       {msg.isDeleted ? (
                         <span className="italic text-xs opacity-60">
@@ -262,12 +273,15 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                         {formatMessageTime(msg.createdAt)}
                       </span>
 
-                      {/* Delete button (own messages only) */}
+                      {/* Desktop delete (hover based) */}
                       {isMe && !msg.isDeleted && (
                         <button
-                          onClick={() => handleDelete(msg._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(msg._id);
+                          }}
                           disabled={isDeleting}
-                          className="absolute -left-7 top-1 hidden rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:block group-hover:opacity-100"
+                          className="absolute -left-7 top-1 hidden rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:block group-hover:opacity-100 md:block"
                           aria-label="Delete message"
                         >
                           <svg
@@ -285,6 +299,29 @@ export default function ChatWindow({ conversationId, meId, otherUser }: Props) {
                       )}
                     </div>
                   </div>
+
+                  {/* Mobile delete button — appears below bubble on tap, md+ hidden */}
+                  {isMe && !msg.isDeleted && showMobileDelete && (
+                    <button
+                      onClick={() => handleDelete(msg._id)}
+                      disabled={isDeleting}
+                      className="mt-1 mr-1 flex items-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 active:bg-destructive/30 md:hidden"
+                      aria-label="Delete message"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-3 w-3"
+                      >
+                        <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
+                      </svg>
+                      Delete
+                    </button>
+                  )}
 
                   {/* Seen receipt */}
                   {seen && (
