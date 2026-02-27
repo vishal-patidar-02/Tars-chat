@@ -1,27 +1,24 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+const ALLOWED_EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
+
 /* Create / Get Conversation */
 export const getOrCreateConversation = mutation({
   args: {
     user1: v.id("users"),
     user2: v.id("users"),
   },
-
   handler: async (ctx, args) => {
     if (args.user1 === args.user2) {
       throw new Error("Cannot create conversation with yourself");
     }
-
     const members = [args.user1, args.user2].sort();
-
     const existing = await ctx.db
       .query("conversations")
       .withIndex("by_members", q => q.eq("members", members))
       .first();
-
     if (existing) return existing._id;
-
     return await ctx.db.insert("conversations", {
       members,
       updatedAt: Date.now(),
@@ -39,9 +36,7 @@ export const createGroupConversation = mutation({
   handler: async (ctx, args) => {
     if (args.name.trim().length === 0) throw new Error("Group name cannot be empty");
     if (args.memberIds.length < 1) throw new Error("A group needs at least 1 other member");
-
     const members = [...new Set([args.createdBy, ...args.memberIds])].sort();
-
     return await ctx.db.insert("conversations", {
       members,
       updatedAt: Date.now(),
@@ -72,7 +67,6 @@ export const updateGroupConversation = mutation({
       if (args.name.trim().length === 0) throw new Error("Group name cannot be empty");
       patch.name = args.name.trim();
     }
-
     if (args.memberIds !== undefined) {
       const members = [...new Set([args.requesterId, ...args.memberIds])].sort();
       if (members.length < 2) throw new Error("Group must have at least 2 members");
@@ -99,6 +93,49 @@ export const sendMessage = mutation({
       seenBy: [args.senderId],
     });
     await ctx.db.patch(args.conversationId, { updatedAt: Date.now() });
+  },
+});
+
+/* Toggle Reaction — one emoji per user; clicking same emoji removes it */
+export const toggleReaction = mutation({
+  args: {
+    messageId: v.id("messages"),
+    userId: v.id("users"),
+    emoji: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!ALLOWED_EMOJIS.includes(args.emoji)) {
+      throw new Error("Emoji not allowed");
+    }
+
+    const message = await ctx.db.get(args.messageId);
+    if (!message) throw new Error("Message not found");
+    if (message.isDeleted) throw new Error("Cannot react to a deleted message");
+
+    const reactions = message.reactions ?? [];
+
+    // Check if user already has ANY reaction on this message
+    const existingIdx = reactions.findIndex((r) => r.userId === args.userId);
+
+    let updatedReactions;
+
+    if (existingIdx !== -1) {
+      const existing = reactions[existingIdx];
+      if (existing.emoji === args.emoji) {
+        // Same emoji → remove (toggle off)
+        updatedReactions = reactions.filter((_, i) => i !== existingIdx);
+      } else {
+        // Different emoji → replace (one emoji per user rule)
+        updatedReactions = reactions.map((r, i) =>
+          i === existingIdx ? { emoji: args.emoji, userId: args.userId } : r
+        );
+      }
+    } else {
+      // No existing reaction → add new
+      updatedReactions = [...reactions, { emoji: args.emoji, userId: args.userId }];
+    }
+
+    await ctx.db.patch(args.messageId, { reactions: updatedReactions });
   },
 });
 
@@ -155,7 +192,6 @@ export const markSeen = mutation({
       .query("messages")
       .withIndex("by_conversation", q => q.eq("conversationId", args.conversationId))
       .collect();
-
     for (const msg of messages) {
       const seen = msg.seenBy ?? [];
       if (!seen.includes(args.userId)) {
