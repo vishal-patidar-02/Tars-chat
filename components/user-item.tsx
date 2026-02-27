@@ -41,7 +41,7 @@ export default function UserItem({
       }`}
     >
       {/* Avatar with online indicator */}
-      <div className="relative flex-shrink-0">
+      <div className="relative shrink-0">
         {isGroup ? (
           /* Group avatar — stacked icon */
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy/15 dark:bg-cream/10 ring-1 ring-border">

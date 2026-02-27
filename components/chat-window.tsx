@@ -8,6 +8,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { formatMessageTime } from "@/lib/format-date";
 import { ChatMessagesSkeleton } from "./skeletons";
+import dynamic from "next/dynamic";
+
+const EditGroupModal = dynamic(() => import("./edit-group-modal"), { ssr: false });
 
 interface Props {
   conversationId?: Id<"conversations">;
@@ -43,6 +46,7 @@ export default function ChatWindow({
   const [showNewMsgBtn, setShowNewMsgBtn] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [activeMobileDeleteId, setActiveMobileDeleteId] = useState<string | null>(null);
+  const [showEditGroup, setShowEditGroup] = useState(false);
 
   const setTyping = useMutation(api.messages.setTyping);
   const clearTyping = useMutation(api.messages.clearTyping);
@@ -64,13 +68,11 @@ export default function ChatWindow({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const onScroll = () => {
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       setIsAtBottom(atBottom);
       if (atBottom) setShowNewMsgBtn(false);
     };
-
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
@@ -78,7 +80,6 @@ export default function ChatWindow({
   /* ── Auto-scroll on new messages ── */
   useEffect(() => {
     if (!messages) return;
-
     if (isAtBottom) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     } else {
@@ -89,7 +90,6 @@ export default function ChatWindow({
   /* ── Typing indicator ── */
   useEffect(() => {
     if (!conversationId || !meId) return;
-
     if (text.length > 0) {
       setTyping({ conversationId, userId: meId });
     } else {
@@ -107,21 +107,17 @@ export default function ChatWindow({
   async function handleSend() {
     const trimmed = text.trim();
     if (!trimmed || !conversationId || !meId) return;
-
     setText("");
     inputRef.current?.focus();
-
     await sendMessage({ conversationId, senderId: meId, content: trimmed });
   }
 
   /* ── Delete message ── */
   async function handleDelete(msgId: Id<"messages">) {
     if (!meId) return;
-
     setDeletingIds((prev) => new Set(prev).add(msgId));
     setActiveMobileDeleteId(null);
     await deleteMessage({ messageId: msgId, userId: meId });
-
     setDeletingIds((prev) => {
       const next = new Set(prev);
       next.delete(msgId);
@@ -137,30 +133,18 @@ export default function ChatWindow({
     setShowNewMsgBtn(false);
   }, []);
 
-  /* ── Empty state (no conversation selected) ── */
+  /* ── Empty state ── */
   if (!conversationId || !meId) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-background">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-7 w-7"
-          >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-foreground">
-            Select a conversation
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Choose someone from the sidebar to start chatting
-          </p>
+          <p className="text-sm font-medium text-foreground">Select a conversation</p>
+          <p className="mt-1 text-xs text-muted-foreground">Choose someone from the sidebar to start chatting</p>
         </div>
       </div>
     );
@@ -168,17 +152,27 @@ export default function ChatWindow({
 
   const isLoading = !messages;
 
-  /* Determine header info */
-  const headerName = isGroup ? groupName ?? "Group Chat" : otherUser?.name ?? "User";
-  const headerSubtitle = isGroup
-    ? `${groupMembers?.length ?? 0} members`
-    : otherUser?.online
-      ? "Online"
-      : otherUser?.lastSeen
-        ? `Last seen ${new Date(otherUser.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-        : "Offline";
+  /* ── Group header subtitle: member names preview ── */
+  const memberNamesPreview = (() => {
+    if (!isGroup || !groupMembers) return "";
+    const others = groupMembers.filter((m) => m._id !== meId);
+    if (others.length === 0) return "Just you";
+    const MAX = 3;
+    const shown = others.slice(0, MAX).map((m) => m.name.split(" ")[0]);
+    const remaining = others.length - MAX;
+    return remaining > 0
+      ? `${shown.join(", ")} +${remaining} more`
+      : shown.join(", ");
+  })();
 
-  /* For group messages, find sender info */
+  /* ── DM subtitle ── */
+  const dmSubtitle = otherUser?.online
+    ? "Online"
+    : otherUser?.lastSeen
+      ? `Last seen ${new Date(otherUser.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+      : "Offline";
+
+  /* ── Sender helpers for group ── */
   const getSenderName = (senderId: string) => {
     if (!isGroup) return null;
     return groupMembers?.find((m) => m._id === senderId)?.name ?? "Unknown";
@@ -190,8 +184,10 @@ export default function ChatWindow({
 
   return (
     <div className="flex h-full w-full flex-col bg-background">
+
       {/* ── Chat header ── */}
       <div className="flex items-center gap-3 border-b border-border px-5 py-3">
+        {/* Avatar */}
         <div className="relative shrink-0">
           {isGroup ? (
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy/15 dark:bg-cream/10 ring-1 ring-border">
@@ -216,23 +212,62 @@ export default function ChatWindow({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-semibold text-foreground">
-            {headerName}
-          </span>
-          <span
-            className={`text-xs ${!isGroup && otherUser?.online ? "text-green-500" : "text-muted-foreground"}`}
+        {/* Name + subtitle — clickable for groups */}
+        {isGroup ? (
+          <button
+            onClick={() => setShowEditGroup(true)}
+            className="group flex min-w-0 flex-col text-left rounded-lg px-1.5 py-1 -ml-1.5 transition-colors hover:bg-muted"
+            title="Edit group"
           >
-            {headerSubtitle}
-          </span>
-        </div>
+            <span className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground">
+              {groupName ?? "Group Chat"}
+              {/* Edit pencil icon */}
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 shrink-0"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </span>
+            <span className="truncate text-xs text-muted-foreground">
+              {groupMembers?.length ?? 0} members
+              {memberNamesPreview ? ` · ${memberNamesPreview}` : ""}
+            </span>
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold text-foreground">
+              {otherUser?.name ?? "User"}
+            </span>
+            <span className={`text-xs ${otherUser?.online ? "text-green-500" : "text-muted-foreground"}`}>
+              {dmSubtitle}
+            </span>
+          </div>
+        )}
+
+        {/* Edit button (visible always on mobile for groups) */}
+        {isGroup && (
+          <button
+            onClick={() => setShowEditGroup(true)}
+            className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-elevated text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Edit group"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* ── Messages area ── */}
-      <div
-        ref={containerRef}
-        className="relative flex-1 overflow-y-auto overflow-x-hidden"
-      >
+      <div ref={containerRef} className="relative flex-1 overflow-y-auto overflow-x-hidden">
         {isLoading ? (
           <ChatMessagesSkeleton />
         ) : messages.length === 0 ? (
@@ -240,11 +275,9 @@ export default function ChatWindow({
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
               <span className="text-2xl">👋</span>
             </div>
-            <p className="text-sm font-medium text-foreground">
-              Start a conversation
-            </p>
+            <p className="text-sm font-medium text-foreground">Start a conversation</p>
             <p className="text-xs text-muted-foreground">
-              {isGroup ? `Say hello to the group!` : `Say hello to ${otherUser?.name ?? "them"}!`}
+              {isGroup ? "Say hello to the group!" : `Say hello to ${otherUser?.name ?? "them"}!`}
             </p>
           </div>
         ) : (
@@ -253,8 +286,7 @@ export default function ChatWindow({
               const isMe = msg.senderId === meId;
               const seen = isMe && (msg.seenBy?.length ?? 0) > 1;
               const prevMsg = messages[idx - 1];
-              const showAvatar =
-                !isMe && (!prevMsg || prevMsg.senderId !== msg.senderId);
+              const showAvatar = !isMe && (!prevMsg || prevMsg.senderId !== msg.senderId);
               const isDeleting = deletingIds.has(msg._id);
               const showMobileDelete = activeMobileDeleteId === msg._id;
               const senderName = getSenderName(msg.senderId);
@@ -265,21 +297,17 @@ export default function ChatWindow({
                   key={msg._id}
                   className={`group flex flex-col ${isMe ? "items-end" : "items-start"}`}
                 >
-                  {/* Group sender name (shown above first message in a run) */}
+                  {/* Group: sender name above first bubble in a run */}
                   {isGroup && !isMe && showAvatar && senderName && (
                     <span className="ml-9 mb-0.5 text-[11px] font-medium text-muted-foreground">
                       {senderName}
                     </span>
                   )}
 
-                  <div
-                    className={`flex w-full min-w-0 items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                  >
-                    {/* Other user avatar */}
+                  <div className={`flex w-full min-w-0 items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                    {/* Avatar */}
                     {!isMe && (
-                      <div
-                        className={`shrink-0 ${showAvatar ? "visible" : "invisible"}`}
-                      >
+                      <div className={`shrink-0 ${showAvatar ? "visible" : "invisible"}`}>
                         <img
                           src={senderImage}
                           alt=""
@@ -299,22 +327,15 @@ export default function ChatWindow({
                       }`}
                       onClick={() => {
                         if (isMe && !msg.isDeleted) {
-                          setActiveMobileDeleteId(
-                            showMobileDelete ? null : msg._id,
-                          );
+                          setActiveMobileDeleteId(showMobileDelete ? null : msg._id);
                         }
                       }}
                     >
                       {msg.isDeleted ? (
-                        <span className="italic text-xs opacity-60">
-                          This message was deleted
-                        </span>
+                        <span className="italic text-xs opacity-60">This message was deleted</span>
                       ) : (
-                        <span className="leading-relaxed wrap-break-word">
-                          {msg.content}
-                        </span>
+                        <span className="leading-relaxed wrap-break-word">{msg.content}</span>
                       )}
-
                       <span className="mt-1 block text-right text-[10px] opacity-50">
                         {formatMessageTime(msg.createdAt)}
                       </span>
@@ -322,23 +343,12 @@ export default function ChatWindow({
                       {/* Desktop delete */}
                       {isMe && !msg.isDeleted && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(msg._id);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(msg._id); }}
                           disabled={isDeleting}
                           className="absolute -left-7 top-1 hidden rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:block group-hover:opacity-100 md:block"
                           aria-label="Delete message"
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="h-3.5 w-3.5"
-                          >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                             <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
                           </svg>
                         </button>
@@ -354,15 +364,7 @@ export default function ChatWindow({
                       className="mt-1 mr-1 flex items-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 active:bg-destructive/30 md:hidden"
                       aria-label="Delete message"
                     >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-3 w-3"
-                      >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
                         <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
                       </svg>
                       Delete
@@ -371,14 +373,11 @@ export default function ChatWindow({
 
                   {/* Seen receipt (DM only) */}
                   {!isGroup && seen && (
-                    <span className="mr-2 mt-0.5 text-[10px] text-muted-foreground">
-                      Seen
-                    </span>
+                    <span className="mr-2 mt-0.5 text-[10px] text-muted-foreground">Seen</span>
                   )}
                 </div>
               );
             })}
-
             <div ref={bottomRef} className="h-1" />
           </div>
         )}
@@ -390,15 +389,7 @@ export default function ChatWindow({
               onClick={scrollToBottom}
               className="flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-medium text-parchment shadow-lg ring-1 ring-navy/20 transition-all hover:bg-navy/90 dark:bg-cream dark:text-navy dark:ring-cream/20"
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3 w-3"
-              >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
                 <path d="m19 9-7 7-7-7" />
               </svg>
               New messages
@@ -449,6 +440,17 @@ export default function ChatWindow({
           </Button>
         </div>
       </div>
+
+      {/* ── Edit group modal ── */}
+      {showEditGroup && conversationId && meId && isGroup && groupMembers && (
+        <EditGroupModal
+          conversationId={conversationId}
+          meId={meId}
+          currentName={groupName ?? ""}
+          currentMembers={groupMembers}
+          onClose={() => setShowEditGroup(false)}
+        />
+      )}
     </div>
   );
 }
