@@ -16,7 +16,7 @@ export default defineSchema({
     members: v.array(v.id("users")),
     updatedAt: v.number(),
 
-    typing: v.optional(v.id("users")), //who is typing
+    typing: v.optional(v.id("users")),
 
     // Group chat fields
     isGroup: v.optional(v.boolean()),
@@ -30,7 +30,17 @@ export default defineSchema({
     content: v.string(),
     createdAt: v.number(),
 
-    seenBy: v.optional(v.array(v.id("users"))), // seen status
-    isDeleted: v.optional(v.boolean()), // Delete or not 
+    seenBy: v.optional(v.array(v.id("users"))),
+    isDeleted: v.optional(v.boolean()),
+
+    // Reactions: one entry per user, one emoji per user
+    reactions: v.optional(
+      v.array(
+        v.object({
+          emoji: v.string(),
+          userId: v.id("users"),
+        })
+      )
+    ),
   }).index("by_conversation", ["conversationId"]),
 });
