@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Id } from "@/convex/_generated/dataModel";
-import { formatMessageTime } from "@/lib/format-date";
+import { formatMessageTime, formatMessageDateHeader } from "@/lib/format-date";
 import { ChatMessagesSkeleton } from "./skeletons";
 import { MessageReactions } from "./message-reactions";
 import dynamic from "next/dynamic";
@@ -48,6 +48,7 @@ export default function ChatWindow({
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [activeMobileDeleteId, setActiveMobileDeleteId] = useState<string | null>(null);
   const [showEditGroup, setShowEditGroup] = useState(false);
+  const [lastScrollHeight, setLastScrollHeight] = useState(0);
 
   const setTyping = useMutation(api.messages.setTyping);
   const clearTyping = useMutation(api.messages.clearTyping);
@@ -64,6 +65,12 @@ export default function ChatWindow({
     api.messages.getConversation,
     conversationId ? { conversationId } : "skip",
   );
+
+  /* ── Track if we were at bottom before messages changed ── */
+  const wasAtBottomRef = useRef(isAtBottom);
+  useEffect(() => {
+    wasAtBottomRef.current = isAtBottom;
+  }, [isAtBottom]);
 
   /* ── Build a userId → name map for reaction tooltips ── */
   const userNames = useMemo<Record<string, string>>(() => {
@@ -83,20 +90,26 @@ export default function ChatWindow({
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       setIsAtBottom(atBottom);
       if (atBottom) setShowNewMsgBtn(false);
+      setLastScrollHeight(el.scrollHeight);
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  /* ── Auto-scroll on new messages ── */
+  /* ── Smart auto-scroll on new messages ── */
   useEffect(() => {
     if (!messages) return;
-    if (isAtBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only auto-scroll if we were at bottom OR new messages arrived while user wasn't scrolled up
+    const shouldAutoScroll = wasAtBottomRef.current || messages.length <= 10;
+    if (shouldAutoScroll) {
+      // Use requestAnimationFrame for smoother scroll after render
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      });
     } else {
       setShowNewMsgBtn(true);
     }
-  }, [messages]);
+  }, [messages?.length]);
 
   /* ── Typing indicator ── */
   useEffect(() => {
@@ -275,124 +288,147 @@ export default function ChatWindow({
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-1 px-3 py-4 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-1 px-2 py-3 sm:px-4 sm:py-4">
+            {/* Date separators and messages */}
             {messages.map((msg, idx) => {
               const isMe = msg.senderId === meId;
               const seen = isMe && (msg.seenBy?.length ?? 0) > 1;
               const prevMsg = messages[idx - 1];
               const nextMsg = messages[idx + 1];
+
+              // Show avatar when: different sender than previous OR first message OR different sender than next (end of run)
               const showAvatar = !isMe && (!prevMsg || prevMsg.senderId !== msg.senderId);
-              // Add a little gap before a new sender run
               const isNewRun = !prevMsg || prevMsg.senderId !== msg.senderId;
+
+              // Date header: show when first message OR different day than previous
+              const showDateHeader =
+                idx === 0 ||
+                (prevMsg && formatMessageDateHeader(msg.createdAt) !== formatMessageDateHeader(prevMsg.createdAt));
+
               const isDeleting = deletingIds.has(msg._id);
               const showMobileDelete = activeMobileDeleteId === msg._id;
               const senderName = getSenderName(msg.senderId);
               const senderImage = getSenderImage(msg.senderId);
               const reactions = msg.reactions ?? [];
-              const hasReactions = reactions.length > 0;
 
               return (
-                <div
-                  key={msg._id}
-                  className={`group flex flex-col ${isMe ? "items-end" : "items-start"} ${isNewRun ? "mt-3" : "mt-0.5"}`}
-                >
-                  {/* Group: sender name */}
-                  {isGroup && !isMe && showAvatar && senderName && (
-                    <span className="ml-9 mb-0.5 text-[11px] font-medium text-muted-foreground">
-                      {senderName}
-                    </span>
+                <div key={msg._id} className="flex flex-col">
+                  {/* Date header */}
+                  {showDateHeader && (
+                    <div className="flex items-center justify-center my-3">
+                      <span className="px-3 py-1 text-xs font-medium text-muted-foreground bg-muted/50 rounded-full">
+                        {formatMessageDateHeader(msg.createdAt)}
+                      </span>
+                    </div>
                   )}
 
-                  <div className={`flex w-full min-w-0 items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                    {/* Avatar */}
-                    {!isMe && (
-                      <div className={`shrink-0 self-end ${showAvatar ? "visible" : "invisible"}`}>
-                        <img
-                          src={senderImage}
-                          alt=""
-                          className="h-6 w-6 rounded-full object-cover"
-                        />
-                      </div>
+                  {/* Message row */}
+                  <div
+                    className={`group flex flex-col ${isMe ? "items-end" : "items-start"} ${isNewRun ? "mt-2" : "mt-0.5"}`}
+                  >
+                    {/* Group: sender name above message */}
+                    {isGroup && !isMe && showAvatar && senderName && (
+                      <span className="ml-1 mb-1 text-[11px] font-medium text-muted-foreground">
+                        {senderName}
+                      </span>
                     )}
 
-                    {/* Bubble + reactions column */}
-                    <div className={`flex min-w-0 flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-                      {/* Bubble */}
-                      <div
-                        className={`relative min-w-0 max-w-[min(32rem,75vw)] wrap-break-word whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm shadow-sm transition-all duration-200 ${
-                          isDeleting ? "opacity-40" : "opacity-100"
-                        } ${
-                          isMe
-                            ? "msg-sent rounded-br-sm bg-bubble-sent text-bubble-sent-text"
-                            : "msg-recv rounded-bl-sm bg-bubble-recv text-bubble-recv-text"
-                        }`}
-                        onClick={() => {
-                          if (isMe && !msg.isDeleted) {
-                            setActiveMobileDeleteId(showMobileDelete ? null : msg._id);
-                          }
-                        }}
-                      >
-                        {msg.isDeleted ? (
-                          <span className="italic text-xs opacity-60">This message was deleted</span>
-                        ) : (
-                          <span className="leading-relaxed wrap-break-word">{msg.content}</span>
-                        )}
-                        <span className="mt-1 block text-right text-[10px] opacity-50">
-                          {formatMessageTime(msg.createdAt)}
-                        </span>
+                    <div className={`flex w-full min-w-0 items-end gap-1.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                      {/* Avatar - larger and more prominent */}
+                      {!isMe && (
+                        <div className={`shrink-0 self-end transition-opacity ${showAvatar ? "opacity-100" : "opacity-0"}`}>
+                          <img
+                            src={senderImage}
+                            alt={senderName ?? "User"}
+                            className="h-7 w-7 rounded-full object-cover ring-1 ring-border shadow-sm"
+                          />
+                        </div>
+                      )}
 
-                        {/* Desktop delete */}
-                        {isMe && !msg.isDeleted && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(msg._id); }}
-                            disabled={isDeleting}
-                            className="absolute -left-7 top-1 hidden rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:block group-hover:opacity-100 md:block"
-                            aria-label="Delete message"
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                              <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
-                            </svg>
-                          </button>
+                      {/* Bubble + reactions column */}
+                      <div className={`flex min-w-0 flex-col ${isMe ? "items-end" : "items-start"}`}>
+                        {/* Bubble */}
+                        <div
+                          className={`relative min-w-0 max-w-[min(28rem,70vw)] break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm transition-all duration-200 ${
+                            isDeleting ? "opacity-40" : "opacity-100"
+                          } ${
+                            isMe
+                              ? "msg-sent rounded-br-md bg-bubble-sent text-bubble-sent-text"
+                              : "msg-recv rounded-bl-md bg-bubble-recv text-bubble-recv-text"
+                          }`}
+                          onClick={() => {
+                            if (isMe && !msg.isDeleted) {
+                              setActiveMobileDeleteId(showMobileDelete ? null : msg._id);
+                            }
+                          }}
+                        >
+                          {msg.isDeleted ? (
+                            <span className="italic text-xs opacity-60">This message was deleted</span>
+                          ) : (
+                            <span className="leading-relaxed break-words">{msg.content}</span>
+                          )}
+                          {/* Time + seen indicator */}
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            <span className="text-[10px] opacity-50">
+                              {formatMessageTime(msg.createdAt)}
+                            </span>
+                            {!isGroup && seen && (
+                              <span className="text-[10px] text-blue-500">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-2.5 w-2.5">
+                                  <path d="M18 6 7 17l-5-5M22 10 7 25" />
+                                </svg>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Desktop delete button */}
+                          {isMe && !msg.isDeleted && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDelete(msg._id); }}
+                              disabled={isDeleting}
+                              className="absolute -left-8 top-1/2 -translate-y-1/2 hidden rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:text-destructive hover:bg-destructive/10 group-hover:opacity-100 md:block"
+                              aria-label="Delete message"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                                <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Reactions row */}
+                        {!msg.isDeleted && (
+                          <MessageReactions
+                            messageId={msg._id}
+                            meId={meId}
+                            reactions={reactions}
+                            isMe={isMe}
+                            isDeleted={msg.isDeleted ?? false}
+                            userNames={userNames}
+                          />
                         )}
                       </div>
-
-                      {/* ── Reactions row ── */}
-                      {!msg.isDeleted && (
-                        <MessageReactions
-                          messageId={msg._id}
-                          meId={meId}
-                          reactions={reactions}
-                          isMe={isMe}
-                          isDeleted={msg.isDeleted ?? false}
-                          userNames={userNames}
-                        />
-                      )}
                     </div>
+
+                    {/* Mobile delete button */}
+                    {isMe && !msg.isDeleted && showMobileDelete && (
+                      <button
+                        onClick={() => handleDelete(msg._id)}
+                        disabled={isDeleting}
+                        className="mt-1.5 mr-1 flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 active:bg-destructive/30 md:hidden"
+                        aria-label="Delete message"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                          <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
+                        </svg>
+                        Delete
+                      </button>
+                    )}
                   </div>
-
-                  {/* Mobile delete */}
-                  {isMe && !msg.isDeleted && showMobileDelete && (
-                    <button
-                      onClick={() => handleDelete(msg._id)}
-                      disabled={isDeleting}
-                      className="mt-1 mr-1 flex items-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 active:bg-destructive/30 md:hidden"
-                      aria-label="Delete message"
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
-                        <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
-                      </svg>
-                      Delete
-                    </button>
-                  )}
-
-                  {/* Seen receipt (DM only) */}
-                  {!isGroup && seen && (
-                    <span className="mr-2 mt-0.5 text-[10px] text-muted-foreground">Seen</span>
-                  )}
                 </div>
               );
             })}
-            <div ref={bottomRef} className="h-1" />
+            <div ref={bottomRef} className="h-px" />
           </div>
         )}
 
@@ -401,7 +437,7 @@ export default function ChatWindow({
           <div className="sticky bottom-4 flex justify-center">
             <button
               onClick={scrollToBottom}
-              className="flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-medium text-parchment shadow-lg ring-1 ring-navy/20 transition-all hover:bg-navy/90 dark:bg-cream dark:text-navy dark:ring-cream/20"
+              className="flex items-center gap-1.5 rounded-full bg-red px-4 py-2 text-xs font-medium text-parchment shadow-lg ring-1 ring-navy/20 transition-all hover:bg-navy/90 dark:bg-cream dark:text-navy dark:ring-cream/20"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
                 <path d="m19 9-7 7-7-7" />
@@ -414,43 +450,57 @@ export default function ChatWindow({
 
       {/* ── Typing indicator ── */}
       {conversation?.typing && conversation.typing !== meId && (
-        <div className="flex items-center gap-2 px-5 py-1.5">
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
+        <div className="flex items-center gap-2 px-4 py-2 animate-fade-in">
+          <div className="flex items-center gap-1.5 bg-muted/50 rounded-xl px-3 py-2">
+            <div className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+            <span className="text-xs font-medium text-muted-foreground">
+              {isGroup
+                ? groupMembers?.find((m) => m._id === conversation.typing)?.name ?? "Someone"
+                : otherUser?.name ?? "Typing"}
+              is typing…
+            </span>
           </div>
-          <span className="text-xs text-muted-foreground">
-            {isGroup
-              ? groupMembers?.find((m) => m._id === conversation.typing)?.name ?? "Someone"
-              : otherUser?.name ?? "Typing"}
-            …
-          </span>
         </div>
       )}
 
       {/* ── Input bar ── */}
-      <div className="border-t border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Input
-            ref={inputRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={isGroup ? `Message ${groupName ?? "the group"}…` : `Message ${otherUser?.name ?? ""}…`}
-            className="flex-1"
-          />
-          <Button onClick={handleSend} disabled={!text.trim()}>
-            Send
+      <div className="border-t border-border px-3 py-3 sm:px-4 sm:py-3.5">
+        <div className="flex items-end gap-2 max-w-4xl mx-auto">
+          <div className="relative flex-1">
+            <Input
+              ref={inputRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={isGroup ? `Message ${groupName ?? "the group"}…` : `Message ${otherUser?.name ?? ""}…`}
+              className="min-h-[44px] pr-12 bg-elevated border-border placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              rows={1}
+              style={{ height: "auto", minHeight: "44px" }}
+            />
+          </div>
+          <Button
+            onClick={handleSend}
+            disabled={!text.trim()}
+            className="h-11 w-11 sm:w-auto sm:px-6 shrink-0 rounded-xl transition-all disabled:opacity-50 disabled:scale-100 active:scale-95"
+          >
+            <span className="hidden sm:inline">Send</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 sm:hidden">
+              <path d="m22 2-7 20-4-9-9-4Z" />
+              <path d="M22 2 11 13" />
+            </svg>
           </Button>
         </div>
       </div>
